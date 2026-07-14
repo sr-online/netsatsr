@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>เช็กชื่อ - ติว Netsat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <div class="topbar">
+      <div class="logo">√</div>
+      <div>
+        <div class="title">เช็กชื่อติว Netsat</div>
+        <div class="subtitle" id="todayLabel"></div>
+      </div>
+    </div>
+
+    <main>
+      <!-- STEP 1: กรอกรหัสประจำตัว -->
+      <section class="step active" id="step-checkin">
+        <div class="event-card">
+          <div class="event-name" id="eventName"></div>
+          <div class="event-place" id="eventPlace"></div>
+        </div>
+        <div class="search-box">
+          <input type="tel" inputmode="numeric" id="idInput" placeholder="กรอกเลขรหัสประจำตัวนักเรียน" autocomplete="off" maxlength="10" />
+        </div>
+        <div class="error-hint" id="idError"></div>
+        <button class="btn btn-primary" id="submitIdBtn" style="width:100%">ลงชื่อเข้าเรียน</button>
+      </section>
+
+      <!-- STEP 2: ยืนยัน -->
+      <section class="step" id="step-confirm">
+        <div class="confirm-card">
+          <div class="avatar" id="confirmAvatar"></div>
+          <div class="c-name" id="confirmName"></div>
+          <div class="c-class" id="confirmClass"></div>
+          <div class="confirm-table">
+            <div class="row"><span class="k">รหัสประจำตัว</span><span class="v" id="confirmId"></span></div>
+            <div class="row"><span class="k">วันที่</span><span class="v" id="confirmDate"></span></div>
+            <div class="row"><span class="k">เวลาลงชื่อ</span><span class="v" id="confirmTime"></span></div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="reselectBtn">กรอกใหม่</button>
+          <button class="btn btn-primary" id="confirmBtn">ยืนยันการลงชื่อ</button>
+        </div>
+      </section>
+
+      <!-- STEP 3: สำเร็จ -->
+      <section class="step" id="step-success">
+        <div class="success-wrap">
+          <div class="success-badge" id="successBadge">✓</div>
+          <div class="success-title" id="successTitle">ลงชื่อสำเร็จ</div>
+          <div class="success-detail" id="successDetail"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="doneBtn" style="flex:1">ลงชื่อคนต่อไป</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/checkin.js"></script>
+</body>
+</html>

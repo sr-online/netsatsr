@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ระบบเช็กชื่อติว Netsat (โปรเจกต์นี้) เก็บที่ collection "netsat_checkins"
+    match /netsat_checkins/{docId} {
+      // อ่านได้ทุกคน (ใช้แสดงผล Dashboard และตรวจสอบการลงชื่อซ้ำ)
+      allow read: if true;
+
+      // สร้างรายการลงชื่อใหม่ได้ ถ้าข้อมูลครบตามรูปแบบที่กำหนด (กันข้อมูลมั่ว/ผิดโครงสร้าง)
+      allow create: if request.resource.data.studentId is string
+        && request.resource.data.name is string
+        && request.resource.data.class is string
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+      // ห้ามแก้ไขหรือลบข้อมูลจากฝั่งเว็บ (กันข้อมูลถูกงัดแก้)
+      allow update, delete: if false;
+    }
+
+    // ระบบเช็กชื่อนักเรียนติวเสริม (อีกโปรเจกต์หนึ่งที่ใช้ Firebase เดียวกัน) เก็บที่ collection "checkins"
+    // คงกฎเดิมไว้เพื่อไม่ให้กระทบระบบนั้น — ถ้ายังไม่เคยตั้งค่า Rules ของระบบนั้นมาก่อน ให้คงส่วนนี้ไว้ด้วย
+    match /checkins/{docId} {
+      allow read: if true;
+      allow create: if request.resource.data.subject is string
+        && request.resource.data.name is string
+        && request.resource.data.class is string
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      allow update, delete: if false;
+    }
+  }
+}
