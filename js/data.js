@@ -7,6 +7,26 @@ const EVENT = {
   place: "ห้องประชุมลำน้ำสงคราม โรงเรียนสหราษฎร์รังสฤษดิ์",
 };
 
+// ช่วงเวลาลงชื่อ 3 ช่วงต่อวัน ระบบเลือกช่วงให้อัตโนมัติจากเวลาปัจจุบันของเครื่อง
+// เช้า: ก่อน 12:00, บ่าย: 12:00-15:00, ก่อนกลับบ้าน: ตั้งแต่ 15:00 เป็นต้นไป
+const PERIODS = [
+  { key: "morning", label: "เช้า" },
+  { key: "afternoon", label: "บ่าย" },
+  { key: "evening", label: "ก่อนกลับบ้าน" },
+];
+
+function currentPeriodKey(d) {
+  const hours = d.getHours() + d.getMinutes() / 60;
+  if (hours < 12) return "morning";
+  if (hours < 15) return "afternoon";
+  return "evening";
+}
+
+function periodLabel(key) {
+  const found = PERIODS.find((p) => p.key === key);
+  return found ? found.label : key;
+}
+
 // key: รหัสประจำตัวนักเรียน (string), value: { name, class }
 const STUDENTS = {
   "15964": { name: "นายวัชระพงษ์ ยาทรัพย์", class: "ม.4/8" },

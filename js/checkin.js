@@ -27,10 +27,12 @@ function initials(name) {
 document.getElementById("todayLabel").textContent = thaiFullDate(new Date());
 document.getElementById("eventName").textContent = EVENT.name;
 document.getElementById("eventPlace").textContent = EVENT.place;
+document.getElementById("eventPeriod").textContent = `ช่วงเวลาปัจจุบัน: ${periodLabel(currentPeriodKey(new Date()))}`;
 
 // ---------- state ----------
 let selectedId = null;
 let selectedStudent = null;
+let selectedPeriod = null;
 let submitting = false;
 
 // ---------- steps ----------
@@ -79,11 +81,13 @@ function lookupId() {
   selectedStudent = student;
 
   const now = new Date();
+  selectedPeriod = currentPeriodKey(now);
   document.getElementById("confirmAvatar").textContent = initials(student.name);
   document.getElementById("confirmName").textContent = student.name;
   document.getElementById("confirmClass").textContent = student.class;
   document.getElementById("confirmId").textContent = selectedId;
   document.getElementById("confirmDate").textContent = thaiFullDate(now);
+  document.getElementById("confirmPeriod").textContent = periodLabel(selectedPeriod);
   document.getElementById("confirmTime").textContent = thaiTime(now);
 
   showStep("confirm");
@@ -95,11 +99,11 @@ document.getElementById("reselectBtn").addEventListener("click", () => {
   idInput.focus();
 });
 
-// ใช้รหัสเอกสารที่คำนวณได้แน่นอนจาก รหัสนักเรียน+วันที่ แล้วเขียนด้วย .set() แทน .add()
+// ใช้รหัสเอกสารที่คำนวณได้แน่นอนจาก รหัสนักเรียน+วันที่+ช่วงเวลา แล้วเขียนด้วย .set() แทน .add()
 // เพื่อให้ Firestore Rules (allow update: if false) เป็นตัวกันการลงชื่อซ้ำให้แบบ atomic
 // จริงๆ ในระดับฐานข้อมูล ไม่ใช่แค่เช็กฝั่งหน้าเว็บ (กันกรณีกดยืนยันซ้ำๆ เร็วๆ หรือลงชื่อพร้อมกันจากหลายเครื่อง)
-function makeCheckinId(studentId, dateStr) {
-  return `${studentId}_${dateStr}`;
+function makeCheckinId(studentId, dateStr, period) {
+  return `${studentId}_${dateStr}_${period}`;
 }
 
 document.getElementById("confirmBtn").addEventListener("click", async () => {
@@ -112,13 +116,14 @@ document.getElementById("confirmBtn").addEventListener("click", async () => {
 
   try {
     const today = dateKey(new Date());
-    const checkinId = makeCheckinId(selectedId, today);
+    const checkinId = makeCheckinId(selectedId, today, selectedPeriod);
 
     await db.collection(CHECKINS_COLLECTION).doc(checkinId).set({
       studentId: selectedId,
       name: selectedStudent.name,
       class: selectedStudent.class,
       date: today,
+      period: selectedPeriod,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     showSuccess();
@@ -143,7 +148,7 @@ function showSuccess() {
   document.getElementById("successTitle").textContent = "ลงชื่อสำเร็จ";
   document.getElementById("successDetail").innerHTML =
     `<strong>${selectedStudent.name}</strong> (${selectedStudent.class})<br/>` +
-    `รหัสประจำตัว ${selectedId}<br/>เวลา ${thaiTime(new Date())} น.`;
+    `รหัสประจำตัว ${selectedId}<br/>ช่วง${periodLabel(selectedPeriod)} เวลา ${thaiTime(new Date())} น.`;
   showStep("success");
 }
 
@@ -151,7 +156,7 @@ async function showAlreadyDone() {
   let timeText = "";
   try {
     const today = dateKey(new Date());
-    const doc = await db.collection(CHECKINS_COLLECTION).doc(makeCheckinId(selectedId, today)).get();
+    const doc = await db.collection(CHECKINS_COLLECTION).doc(makeCheckinId(selectedId, today, selectedPeriod)).get();
     if (doc.exists && doc.data().createdAt && doc.data().createdAt.toDate) {
       timeText = `<br/>เวลาที่ลงชื่อไว้ ${thaiTime(doc.data().createdAt.toDate())} น.`;
     }
@@ -160,16 +165,17 @@ async function showAlreadyDone() {
   }
   document.getElementById("successBadge").className = "success-badge warn";
   document.getElementById("successBadge").textContent = "!";
-  document.getElementById("successTitle").textContent = "ลงชื่อไปแล้ววันนี้";
+  document.getElementById("successTitle").textContent = `ลงชื่อช่วง${periodLabel(selectedPeriod)}ไปแล้ว`;
   document.getElementById("successDetail").innerHTML =
     `<strong>${selectedStudent.name}</strong> (${selectedStudent.class})<br/>` +
-    `ได้ลงชื่อเข้าร่วมกิจกรรมของวันนี้ไปแล้ว${timeText}`;
+    `ได้ลงชื่อเข้าร่วมช่วง${periodLabel(selectedPeriod)}ของวันนี้ไปแล้ว${timeText}`;
   showStep("success");
 }
 
 document.getElementById("doneBtn").addEventListener("click", () => {
   selectedId = null;
   selectedStudent = null;
+  selectedPeriod = null;
   idInput.value = "";
   idError.textContent = "";
   showStep("checkin");

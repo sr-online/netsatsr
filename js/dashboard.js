@@ -67,6 +67,7 @@ gatePasswordInput.addEventListener("keydown", (e) => {
 
 // ---------------- STATE ----------------
 let selectedDateStr = todayKey;
+let selectedPeriod = currentPeriodKey(new Date());
 let viewMode = "checked"; // checked | absent
 let searchKw = "";
 let dayRecords = [];
@@ -90,6 +91,23 @@ function bindStaticEvents() {
     renderTable();
   });
   document.getElementById("exportBtn").addEventListener("click", exportExcel);
+  renderPeriodTabs();
+}
+
+function renderPeriodTabs() {
+  const wrap = document.getElementById("periodTabs");
+  wrap.innerHTML = "";
+  PERIODS.forEach((p) => {
+    const btn = document.createElement("button");
+    btn.className = "tab-btn" + (selectedPeriod === p.key ? " active" : "");
+    btn.textContent = p.label;
+    btn.addEventListener("click", () => {
+      selectedPeriod = p.key;
+      renderPeriodTabs();
+      renderTable();
+    });
+    wrap.appendChild(btn);
+  });
 }
 
 // ---------------- DATA LOADING ----------------
@@ -104,12 +122,15 @@ async function loadDay() {
 function normalizeRecord(doc) {
   const data = doc.data();
   const createdAtMs = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().getTime() : 0;
+  // ข้อมูลเก่าก่อนมีช่วงเวลา (ไม่มีฟิลด์ period) ให้เดาช่วงจากเวลาที่ลงชื่อไว้แทน
+  const period = data.period || (createdAtMs ? currentPeriodKey(new Date(createdAtMs)) : "morning");
   return {
     id: doc.id,
     studentId: data.studentId,
     name: data.name,
     class: data.class,
     date: data.date,
+    period,
     createdAtMs,
   };
 }
@@ -119,11 +140,12 @@ function renderStatGrid() {
   const grid = document.getElementById("statGrid");
   grid.innerHTML = "";
   const total = ROSTER.length;
-  const checked = dayRecords.length;
-  const pct = total ? Math.round((checked / total) * 100) : 0;
-  grid.appendChild(statCard("ลงชื่อแล้ว", `${checked}`, dateLabelShort()));
+  PERIODS.forEach((p) => {
+    const checked = dayRecords.filter((r) => r.period === p.key).length;
+    const pct = total ? Math.round((checked / total) * 100) : 0;
+    grid.appendChild(statCard(`ช่วง${p.label}`, `${checked}`, `${pct}% (${checked}/${total} คน)`));
+  });
   grid.appendChild(statCard("นักเรียนทั้งหมด", `${total}`, "คน"));
-  grid.appendChild(statCard("อัตราการเข้าร่วม", `${pct}%`, `${checked}/${total} คน`));
 }
 
 function statCard(label, value, sub) {
@@ -137,10 +159,6 @@ function statCard(label, value, sub) {
   return div;
 }
 
-function dateLabelShort() {
-  return selectedDateStr === todayKey ? "วันนี้" : thaiShortDate(keyToDate(selectedDateStr));
-}
-
 // ---------------- TABLE ----------------
 function renderTable() {
   const head = document.getElementById("tableHead");
@@ -148,9 +166,10 @@ function renderTable() {
   const title = document.getElementById("tableTitle");
   const viewTabsWrap = document.getElementById("viewTabs");
 
-  title.textContent = `รายชื่อ ${selectedDateStr === todayKey ? "วันนี้" : "วันที่ " + thaiShortDate(keyToDate(selectedDateStr))}`;
+  title.textContent = `รายชื่อช่วง${periodLabel(selectedPeriod)} ${selectedDateStr === todayKey ? "วันนี้" : "วันที่ " + thaiShortDate(keyToDate(selectedDateStr))}`;
 
-  const checkedIds = new Set(dayRecords.map((r) => r.studentId));
+  const periodRecords = dayRecords.filter((r) => r.period === selectedPeriod);
+  const checkedIds = new Set(periodRecords.map((r) => r.studentId));
   const absentList = ROSTER.filter((s) => !checkedIds.has(s.id));
 
   viewTabsWrap.innerHTML = "";
@@ -172,7 +191,7 @@ function renderTable() {
   viewTabsWrap.appendChild(absentTab);
 
   if (viewMode === "checked") {
-    renderCheckedTable(head, body, dayRecords);
+    renderCheckedTable(head, body, periodRecords);
   } else {
     renderAbsentTable(head, body, absentList);
   }
@@ -231,19 +250,27 @@ function normalizeSearch(str) {
 function exportExcel() {
   let rows;
   let sheetName;
+  const periodRecords = dayRecords.filter((r) => r.period === selectedPeriod);
 
   if (viewMode === "checked") {
-    rows = [["เวลา", "รหัสประจำตัว", "ชื่อ-สกุล", "ชั้น", "วันที่"]];
-    dayRecords
+    rows = [["เวลา", "รหัสประจำตัว", "ชื่อ-สกุล", "ชั้น", "วันที่", "ช่วงเวลา"]];
+    periodRecords
       .slice()
       .sort((a, b) => a.createdAtMs - b.createdAtMs)
       .forEach((r) => {
-        rows.push([r.createdAtMs ? thaiTime(new Date(r.createdAtMs)) : "", r.studentId, r.name, r.class, r.date]);
+        rows.push([
+          r.createdAtMs ? thaiTime(new Date(r.createdAtMs)) : "",
+          r.studentId,
+          r.name,
+          r.class,
+          r.date,
+          periodLabel(r.period),
+        ]);
       });
     sheetName = "ลงชื่อแล้ว";
   } else {
     rows = [["รหัสประจำตัว", "ชื่อ-สกุล", "ชั้น"]];
-    const checkedIds = new Set(dayRecords.map((r) => r.studentId));
+    const checkedIds = new Set(periodRecords.map((r) => r.studentId));
     ROSTER.filter((s) => !checkedIds.has(s.id)).forEach((s) => rows.push([s.id, s.name, s.class]));
     sheetName = "ยังไม่ลงชื่อ";
   }
@@ -252,7 +279,7 @@ function exportExcel() {
   ws["!cols"] = rows[0].map((_, i) => ({ wch: i === 2 ? 28 : 14 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  XLSX.writeFile(wb, `เช็กชื่อติวNetsat-${selectedDateStr}-${sheetName}.xlsx`);
+  XLSX.writeFile(wb, `เช็กชื่อติวNetsat-${selectedDateStr}-${periodLabel(selectedPeriod)}-${sheetName}.xlsx`);
 }
 
 // ---------------- GATE AUTO-CHECK ----------------
